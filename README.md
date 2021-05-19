@@ -2,6 +2,7 @@
 
 This is a tic tac toe game in react js.
 
+## Demo [https://compassionate-montalcini-2b00f5.netlify.app/](click hare)
 ## Available Scripts
 
 In the project directory, you can run:
