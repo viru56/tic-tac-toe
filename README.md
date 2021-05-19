@@ -1,4 +1,4 @@
-# Tic Tac Toe [Demo link](https://compassionate-montalcini-2b00f5.netlify.app)
+# Tic Tac Toe [Demo](https://compassionate-montalcini-2b00f5.netlify.app)
 
 This is a tic tac toe game in react js.
 
