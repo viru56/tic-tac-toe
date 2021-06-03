@@ -2,10 +2,13 @@ import React,{Component} from 'react';
 import { Container, Grid,Paper,Box,Button, Typography } from '@material-ui/core';
 import StatusDialog from '../status.dialog';
 import NameDialog from '../name.dialog';
+import { Socket } from 'net';
 
 type BoardProps  = {
     numberOfRows:number;
     username:string;
+    socket:any;
+    roomId:string;
 }
 type BoardState = {
     matchStatus:string;
@@ -36,8 +39,29 @@ class Board extends Component<BoardProps, BoardState> {
         openNamedialog:false
     }
     componentDidMount(){
-        this.resetGame();
+      this.resetGame();
+      this.registerSocketEvent();
     }
+    registerSocketEvent = () =>{
+      if( this.props.socket){
+        console.log("socket event")
+        this.props.socket.on('friend-joined',(names:Array<string>)=>{
+          console.log(this.props.username, names);
+          // this.setState({friendName:userName,myTurn:false});
+          // this.props.socket.emit('start-game',this.props.roomId,this.props.username);
+        });
+        // this.props.socket.on('friendName',(names:Array<string>)=>{
+        //   console.log("friendName",names);
+        // })
+        // this.props.socket.on("game-started",(friendName:string)=>{
+        //   console.log("game started", friendName);
+        //   this.setState({myTurn:true, friendName});
+        // })
+      }else{
+        setTimeout(this.registerSocketEvent, 1000);
+      }
+    }
+
     /**
      * reset the game
      */
@@ -52,7 +76,7 @@ class Board extends Component<BoardProps, BoardState> {
         this.setState({
           rowArr,
           matchStatus:"",
-          isPlaying:false,
+          isPlaying: !!this.props.roomId,
           isPlayingWithComputer:false,
         });
       }
@@ -162,11 +186,18 @@ class Board extends Component<BoardProps, BoardState> {
         })
       }
       playWithFriend = ():void =>{
-        this.setState({isPlaying: true,openNamedialog:this.state.friendName ? false: true})
+        const roomId =  new Date().getTime().toString();
+        this.props.socket.emit('join-room',roomId,this.props.username);
+        console.log("room joind", roomId);
+        alert("http://localhost:3000?roomId="+roomId);
       }
-      handleNamedialogClose = (friendName:string):void=>{
-        this.setState({friendName,openNamedialog:false});
-      }
+      // handleNamedialogClose = (friendName:string):void=>{
+      //   this.setState({friendName,openNamedialog:false});
+      //   const roomId =  new Date().getTime().toString();
+      //   this.props.socket.emit('join-room',roomId,this.props.username);
+      //   console.log("room joind", roomId);
+      //   alert("http://localhost:3000?roomId="+roomId);
+      // }
       /** 
        * Find the bast possible move with will lead to draw or to win Computer
        * @param rowArr: {Array<Array<string>>} pass the board array
@@ -249,9 +280,9 @@ class Board extends Component<BoardProps, BoardState> {
                 }
                
               </Grid>
-              {!this.state.isPlaying && 
+              {(!this.state.isPlaying && !this.props.roomId) && 
                 <Grid item>
-                  <Button size="small" variant="contained" color="primary" onClick={this.playWithFriend}>Play with a frined</Button>
+                  <Button size="small" disabled={!this.props.socket} variant="contained" color="primary" onClick={this.playWithFriend}>Play with a frined</Button>
                 </Grid>
               }
               {this.state.isPlaying &&
@@ -276,7 +307,7 @@ class Board extends Component<BoardProps, BoardState> {
             ))}
             </Paper>
             <StatusDialog open={!!this.state.matchStatus} isPlayingWithComputer={this.state.isPlayingWithComputer} username={this.props.username} friendName={this.state.friendName} message={this.state.matchStatus} onClose={this.resetGame}/>
-            <NameDialog open={this.state.openNamedialog} askFriendName={true} onClose={this.handleNamedialogClose}/>
+            {/* <NameDialog open={this.state.openNamedialog} askFriendName={true} onClose={this.handleNamedialogClose}/> */}
           </Container>
         )
     }
