@@ -1,8 +1,6 @@
-import React,{Component} from 'react';
+import {Component} from 'react';
 import { Container, Grid,Paper,Box,Button, Typography } from '@material-ui/core';
 import StatusDialog from '../status.dialog';
-import NameDialog from '../name.dialog';
-import { Socket } from 'net';
 
 type BoardProps  = {
     numberOfRows:number;
@@ -18,6 +16,8 @@ type BoardState = {
     myTurn:boolean;
     friendName:string;
     openNamedialog:boolean;
+    gameInitiator:boolean;
+    roomId:string;
 }
 type Cell = {
     rowIndex:number,
@@ -36,7 +36,9 @@ class Board extends Component<BoardProps, BoardState> {
         rowArr:[],
         myTurn:true,
         friendName:'',
-        openNamedialog:false
+        openNamedialog:false,
+        gameInitiator:false,
+        roomId: ''
     }
     componentDidMount(){
       this.resetGame();
@@ -46,17 +48,23 @@ class Board extends Component<BoardProps, BoardState> {
       if( this.props.socket){
         console.log("socket event")
         this.props.socket.on('friend-joined',(names:Array<string>)=>{
-          console.log(this.props.username, names);
-          // this.setState({friendName:userName,myTurn:false});
-          // this.props.socket.emit('start-game',this.props.roomId,this.props.username);
+          const friendName = names[0] === this.props.username ? names[1] : names[0];
+          this.setState({friendName,myTurn:this.state.gameInitiator,isPlaying:true});
+          console.log("gameInitiator: ",this.state.gameInitiator);
+          if(this.props.roomId){
+            this.setState({roomId:this.props.roomId});
+          }
         });
-        // this.props.socket.on('friendName',(names:Array<string>)=>{
-        //   console.log("friendName",names);
-        // })
-        // this.props.socket.on("game-started",(friendName:string)=>{
-        //   console.log("game started", friendName);
-        //   this.setState({myTurn:true, friendName});
-        // })
+        this.props.socket.on('friend-move',(data:{rowIndex:number,cellIndex:number})=>{
+          const rowArr:Array<Array<string>>= JSON.parse(JSON.stringify(this.state.rowArr)); 
+          rowArr[data.rowIndex][data.cellIndex] = this.state.myTurn ? Turn.HUMAN : Turn.COMPUTER;
+          const matchStatus =  this.checkForMatchStatus(rowArr);
+          this.setState({
+            rowArr, 
+            myTurn: !this.state.myTurn,
+            matchStatus
+          });
+        })
       }else{
         setTimeout(this.registerSocketEvent, 1000);
       }
@@ -98,6 +106,9 @@ class Board extends Component<BoardProps, BoardState> {
         });
         if(this.state.isPlayingWithComputer){
             this.handleComputerMove();
+        }else{
+          console.log("sending message");
+          this.props.socket.emit('move', {roomId: this.state.roomId,rowIndex,cellIndex});
         }
         
       }
@@ -190,14 +201,8 @@ class Board extends Component<BoardProps, BoardState> {
         this.props.socket.emit('join-room',roomId,this.props.username);
         console.log("room joind", roomId);
         alert("http://localhost:3000?roomId="+roomId);
+        this.setState({gameInitiator:true,roomId});
       }
-      // handleNamedialogClose = (friendName:string):void=>{
-      //   this.setState({friendName,openNamedialog:false});
-      //   const roomId =  new Date().getTime().toString();
-      //   this.props.socket.emit('join-room',roomId,this.props.username);
-      //   console.log("room joind", roomId);
-      //   alert("http://localhost:3000?roomId="+roomId);
-      // }
       /** 
        * Find the bast possible move with will lead to draw or to win Computer
        * @param rowArr: {Array<Array<string>>} pass the board array
@@ -296,7 +301,7 @@ class Board extends Component<BoardProps, BoardState> {
                 <Grid key={rowIndex} container className={`row row${rowIndex}`}>
                 {
                 row.map((cell,cellIndex)=>(
-                    <Grid onClick={()=> cell ? null : this.handleCellClick(rowIndex,cellIndex)} item key={cellIndex} xs={this.props.numberOfRows === 3 ? 4 :2} className={`cell cell${rowIndex}${cellIndex}`}>
+                    <Grid onClick={()=> (cell || !this.state.myTurn) ? null : this.handleCellClick(rowIndex,cellIndex)} item key={cellIndex} xs={this.props.numberOfRows === 3 ? 4 :2} className={`cell cell${rowIndex}${cellIndex}`}>
                     <Typography color={cell==='X' ? 'secondary': 'textPrimary'} className={cell? "cell-filled" : this.state.isPlaying ? "cell-content" :""}>
                         {cell}
                     </Typography>
